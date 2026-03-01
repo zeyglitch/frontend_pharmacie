@@ -13,10 +13,9 @@ const emit = defineEmits(['supprimer', 'modifierQuantite', 'modifier'])
   <div class="carte-medicament">
     <h3>{{ medicament.nom }}</h3>
 
-    <!-- Photo du médicament -->
+    <!-- Photo du médicament (image par défaut si aucune URL) -->
     <img
-      v-if="medicament.imageUrl"
-      :src="medicament.imageUrl"
+      :src="medicament.imageUrl || 'https://cdn-icons-png.flaticon.com/512/2927/2927347.png'"
       :alt="medicament.nom"
       class="image-medicament"
     />
