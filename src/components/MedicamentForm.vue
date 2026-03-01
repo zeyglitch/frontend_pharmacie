@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
-const URL_API = 'https://apipharmacie.pecatte.fr/medicaments'
+const URL_API = 'https://backend-pharmacie-7fa7.onrender.com/api/medicaments'
 
 const props = defineProps({
   medicament: {
@@ -16,16 +16,15 @@ const estModification = ref(false)
 
 // Champs du formulaire
 const nom = ref('')
-const description = ref('')
-const prix = ref(0)
-const quantite = ref(0)
-const imageUrl = ref('')
-const categorieId = ref('')
-const categorieNom = ref('')
+const quantiteParUnite = ref('')
+const prixUnitaire = ref(0)
+const unitesEnStock = ref(0)
+const niveauDeReappro = ref(5)
+const imageURL = ref('')
+const categorieCode = ref('')
 
 // Liste des catégories pour le select
 const listeCategories = ref([])
-const chargementCategories = ref(false)
 
 // Si on reçoit un médicament en prop, on pré-remplit le formulaire
 onMounted(() => {
@@ -34,34 +33,29 @@ onMounted(() => {
   if (props.medicament) {
     estModification.value = true
     nom.value = props.medicament.nom
-    description.value = props.medicament.description || ''
-    prix.value = props.medicament.prix
-    quantite.value = props.medicament.quantite
-    imageUrl.value = props.medicament.imageUrl || ''
+    quantiteParUnite.value = props.medicament.quantiteParUnite || ''
+    prixUnitaire.value = props.medicament.prixUnitaire
+    unitesEnStock.value = props.medicament.unitesEnStock
+    niveauDeReappro.value = props.medicament.niveauDeReappro
+    imageURL.value = props.medicament.imageURL || ''
     if (props.medicament.categorie) {
-      categorieId.value = props.medicament.categorie.id
-      categorieNom.value = props.medicament.categorie.nom
+      categorieCode.value = props.medicament.categorie.code
     }
   }
 })
 
 // Charger les catégories depuis l'API
 function chargerCategories() {
-  chargementCategories.value = true
-  fetch('https://apipharmacie.pecatte.fr/categories')
+  fetch('https://backend-pharmacie-7fa7.onrender.com/api/categories')
     .then(reponse => {
       if (!reponse.ok) throw new Error('Erreur chargement catégories')
       return reponse.json()
     })
     .then(donnees => {
-      listeCategories.value = donnees
+      listeCategories.value = donnees._embedded ? donnees._embedded.categories : []
     })
     .catch(() => {
-      // Si l'endpoint catégories n'existe pas, on laisse vide
       listeCategories.value = []
-    })
-    .finally(() => {
-      chargementCategories.value = false
     })
 }
 
@@ -69,18 +63,12 @@ function soumettre() {
   // Construction de l'objet à envoyer
   const donnees = {
     nom: nom.value.trim(),
-    description: description.value.trim(),
-    prix: parseFloat(prix.value),
-    quantite: parseInt(quantite.value),
-    imageUrl: imageUrl.value.trim()
-  }
-
-  // Ajout de la catégorie si sélectionnée
-  if (categorieId.value) {
-    const categorieTrouvee = listeCategories.value.find(c => c.id == categorieId.value)
-    if (categorieTrouvee) {
-      donnees.categorie = { id: categorieTrouvee.id, nom: categorieTrouvee.nom }
-    }
+    quantiteParUnite: quantiteParUnite.value.trim(),
+    prixUnitaire: parseFloat(prixUnitaire.value),
+    unitesEnStock: parseInt(unitesEnStock.value),
+    niveauDeReappro: parseInt(niveauDeReappro.value),
+    indisponible: false,
+    imageURL: imageURL.value.trim()
   }
 
   // Validation basique
@@ -101,6 +89,10 @@ function soumettre() {
         return reponse.json()
       })
       .then(resultat => {
+        // Associer la catégorie si sélectionnée
+        if (categorieCode.value) {
+          associerCategorie(props.medicament.id, categorieCode.value)
+        }
         emit('sauvegarder', resultat)
       })
       .catch(err => {
@@ -118,12 +110,29 @@ function soumettre() {
         return reponse.json()
       })
       .then(resultat => {
+        // Récupérer l'id du nouveau médicament pour associer la catégorie
+        const nouvelId = parseInt(resultat._links.self.href.split('/').pop())
+        if (categorieCode.value) {
+          associerCategorie(nouvelId, categorieCode.value)
+        }
         emit('sauvegarder', resultat)
       })
       .catch(err => {
         alert('Erreur : ' + err.message)
       })
   }
+}
+
+// Associer une catégorie à un médicament via Spring Data REST
+function associerCategorie(medicamentId, codeCategorie) {
+  const urlCategorie = `https://backend-pharmacie-7fa7.onrender.com/api/categories/${codeCategorie}`
+  fetch(`${URL_API}/${medicamentId}/categorie`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'text/uri-list' },
+    body: urlCategorie
+  }).catch(() => {
+    // Pas bloquant si l'association échoue
+  })
 }
 </script>
 
@@ -139,37 +148,42 @@ function soumettre() {
         </div>
 
         <div class="champ-formulaire">
-          <label for="description">Description</label>
-          <textarea id="description" v-model="description" placeholder="Description..."></textarea>
+          <label for="quantiteParUnite">Conditionnement</label>
+          <input id="quantiteParUnite" v-model="quantiteParUnite" type="text" placeholder="Ex: Boîte de 12 comprimés" />
         </div>
 
         <div class="champ-formulaire">
-          <label for="prix">Prix (€)</label>
-          <input id="prix" v-model.number="prix" type="number" step="0.01" min="0" />
+          <label for="prixUnitaire">Prix unitaire (€)</label>
+          <input id="prixUnitaire" v-model.number="prixUnitaire" type="number" step="0.01" min="0" />
         </div>
 
         <div class="champ-formulaire">
-          <label for="quantite">Quantité en stock</label>
-          <input id="quantite" v-model.number="quantite" type="number" min="0" />
+          <label for="unitesEnStock">Unités en stock</label>
+          <input id="unitesEnStock" v-model.number="unitesEnStock" type="number" min="0" />
+        </div>
+
+        <div class="champ-formulaire">
+          <label for="niveauDeReappro">Seuil de réapprovisionnement</label>
+          <input id="niveauDeReappro" v-model.number="niveauDeReappro" type="number" min="0" />
         </div>
 
         <div class="champ-formulaire">
           <label for="categorie">Catégorie</label>
-          <select id="categorie" v-model="categorieId">
+          <select id="categorie" v-model="categorieCode">
             <option value="">-- Aucune catégorie --</option>
             <option
               v-for="categorie in listeCategories"
-              :key="categorie.id"
-              :value="categorie.id"
+              :key="categorie.code"
+              :value="categorie.code"
             >
-              {{ categorie.nom }}
+              {{ categorie.libelle }}
             </option>
           </select>
         </div>
 
         <div class="champ-formulaire">
-          <label for="imageUrl">URL de la photo</label>
-          <input id="imageUrl" v-model="imageUrl" type="text" placeholder="https://exemple.com/photo.jpg" />
+          <label for="imageURL">URL de la photo</label>
+          <input id="imageURL" v-model="imageURL" type="text" placeholder="https://exemple.com/photo.jpg" />
         </div>
 
         <div class="boutons-formulaire">

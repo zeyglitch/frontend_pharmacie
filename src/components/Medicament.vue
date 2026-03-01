@@ -15,21 +15,21 @@ const emit = defineEmits(['supprimer', 'modifierQuantite', 'modifier'])
 
     <!-- Photo du médicament (image par défaut si aucune URL) -->
     <img
-      :src="medicament.imageUrl || 'https://cdn-icons-png.flaticon.com/512/2927/2927347.png'"
+      :src="medicament.imageURL || 'https://cdn-icons-png.flaticon.com/512/2927/2927347.png'"
       :alt="medicament.nom"
       class="image-medicament"
     />
 
     <div class="info">
-      <p><span>Description :</span> {{ medicament.description || 'Non renseignée' }}</p>
-      <p><span>Prix :</span> {{ medicament.prix }} €</p>
+      <p><span>Conditionnement :</span> {{ medicament.quantiteParUnite || 'Non renseigné' }}</p>
+      <p><span>Prix :</span> {{ medicament.prixUnitaire }} €</p>
     </div>
 
     <div v-if="medicament.categorie" class="info">
-      <span class="categorie-badge">{{ medicament.categorie.nom }}</span>
+      <span class="categorie-badge">{{ medicament.categorie.libelle }}</span>
     </div>
 
-    <!-- Gestion de la quantité -->
+    <!-- Gestion du stock -->
     <div class="quantite-section">
       <button class="btn btn-danger btn-small" @click="emit('modifierQuantite', medicament, -1)">
         -1
@@ -38,7 +38,7 @@ const emit = defineEmits(['supprimer', 'modifierQuantite', 'modifier'])
         class="quantite-valeur"
         :class="medicament.estEnRupture() ? 'stock-bas' : 'stock-ok'"
       >
-        {{ medicament.quantite }}
+        {{ medicament.unitesEnStock }}
       </span>
       <button class="btn btn-success btn-small" @click="emit('modifierQuantite', medicament, +1)">
         +1

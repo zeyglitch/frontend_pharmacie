@@ -4,7 +4,7 @@ import Medicament from '../Medicament.js'
 import MedicamentCarte from './Medicament.vue'
 import MedicamentForm from './MedicamentForm.vue'
 
-const URL_API = 'https://apipharmacie.pecatte.fr/medicaments'
+const URL_API = 'https://backend-pharmacie-7fa7.onrender.com/api/medicaments'
 
 // État principal
 const listeMedicaments = ref([])
@@ -35,7 +35,7 @@ const medicamentsFiltres = computed(() => {
   // Filtre par catégorie
   if (categorieSelectionnee.value) {
     resultats = resultats.filter(m =>
-      m.categorie && m.categorie.id == categorieSelectionnee.value
+      m.categorie && m.categorie.code == categorieSelectionnee.value
     )
   }
 
@@ -44,13 +44,14 @@ const medicamentsFiltres = computed(() => {
 
 // Récupérer les catégories pour le menu déroulant
 function chargerCategories() {
-  fetch('https://apipharmacie.pecatte.fr/categories')
+  fetch('https://backend-pharmacie-7fa7.onrender.com/api/categories')
     .then(reponse => {
       if (!reponse.ok) throw new Error('Erreur chargement catégories')
       return reponse.json()
     })
     .then(donnees => {
-      listeCategories.value = donnees
+      // Format Spring Data REST : données dans _embedded.categories
+      listeCategories.value = donnees._embedded ? donnees._embedded.categories : []
     })
     .catch(() => {
       listeCategories.value = []
@@ -68,13 +69,34 @@ function chargerMedicaments() {
       return reponse.json()
     })
     .then(donnees => {
-      listeMedicaments.value = donnees.map(d => new Medicament(d))
+      // Spring Data REST : les données sont dans _embedded.medicaments
+      const liste = donnees._embedded ? donnees._embedded.medicaments : []
+      listeMedicaments.value = liste.map(d => new Medicament(d))
+
+      // Pour chaque médicament, on charge sa catégorie
+      listeMedicaments.value.forEach(m => {
+        if (m.lienCategorie) {
+          chargerCategorieMedicament(m)
+        }
+      })
     })
     .catch(err => {
       erreur.value = err.message
     })
     .finally(() => {
       chargement.value = false
+    })
+}
+
+// Charger la catégorie d'un médicament via son lien HAL
+function chargerCategorieMedicament(medicament) {
+  fetch(medicament.lienCategorie)
+    .then(reponse => reponse.json())
+    .then(categorie => {
+      medicament.categorie = categorie
+    })
+    .catch(() => {
+      // Pas grave si la catégorie ne charge pas
     })
 }
 
@@ -85,7 +107,6 @@ function supprimerMedicament(id) {
   fetch(`${URL_API}/${id}`, { method: 'DELETE' })
     .then(reponse => {
       if (!reponse.ok) throw new Error('Erreur lors de la suppression')
-      // On retire le médicament de la liste locale
       listeMedicaments.value = listeMedicaments.value.filter(m => m.id !== id)
     })
     .catch(err => {
@@ -95,13 +116,18 @@ function supprimerMedicament(id) {
 
 // Modifier la quantité (+1 ou -1)
 function modifierQuantite(medicament, delta) {
-  const nouvelleQuantite = medicament.quantite + delta
+  const nouvelleQuantite = medicament.unitesEnStock + delta
   if (nouvelleQuantite < 0) return
 
-  const body = { ...medicament, quantite: nouvelleQuantite }
-  // On envoie la catégorie sous forme d'objet si elle existe
-  if (medicament.categorie) {
-    body.categorie = { id: medicament.categorie.id, nom: medicament.categorie.nom }
+  const body = {
+    nom: medicament.nom,
+    quantiteParUnite: medicament.quantiteParUnite,
+    prixUnitaire: medicament.prixUnitaire,
+    unitesEnStock: nouvelleQuantite,
+    unitesCommandees: medicament.unitesCommandees,
+    niveauDeReappro: medicament.niveauDeReappro,
+    indisponible: medicament.indisponible,
+    imageURL: medicament.imageURL
   }
 
   fetch(`${URL_API}/${medicament.id}`, {
@@ -114,10 +140,11 @@ function modifierQuantite(medicament, delta) {
       return reponse.json()
     })
     .then(donnees => {
-      // Mettre à jour dans la liste locale
       const index = listeMedicaments.value.findIndex(m => m.id === medicament.id)
       if (index !== -1) {
+        const ancienneCategorie = listeMedicaments.value[index].categorie
         listeMedicaments.value[index] = new Medicament(donnees)
+        listeMedicaments.value[index].categorie = ancienneCategorie
       }
     })
     .catch(err => {
@@ -146,17 +173,10 @@ function fermerFormulaire() {
   medicamentAModifier.value = null
 }
 
-// Quand le formulaire sauvegarde (ajout ou modification)
-function onSauvegarde(medicamentSauvegarde) {
-  const index = listeMedicaments.value.findIndex(m => m.id === medicamentSauvegarde.id)
-  if (index !== -1) {
-    // Modification : on remplace dans la liste
-    listeMedicaments.value[index] = new Medicament(medicamentSauvegarde)
-  } else {
-    // Ajout : on l'ajoute à la liste
-    listeMedicaments.value.push(new Medicament(medicamentSauvegarde))
-  }
+// Quand le formulaire sauvegarde (ajout ou modification), on recharge toute la liste
+function onSauvegarde() {
   fermerFormulaire()
+  chargerMedicaments()
 }
 
 onMounted(() => {
@@ -178,10 +198,10 @@ onMounted(() => {
         <option value="">Toutes les catégories</option>
         <option
           v-for="categorie in listeCategories"
-          :key="categorie.id"
-          :value="categorie.id"
+          :key="categorie.code"
+          :value="categorie.code"
         >
-          {{ categorie.nom }}
+          {{ categorie.libelle }}
         </option>
       </select>
     </div>
