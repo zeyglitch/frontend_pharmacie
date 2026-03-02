@@ -15,7 +15,7 @@ const emit = defineEmits(['supprimer', 'modifierQuantite', 'modifier'])
 
     <!-- Photo du médicament (image par défaut si aucune URL) -->
     <img
-      :src="medicament.imageURL || 'https://cdn-icons-png.flaticon.com/512/2927/2927347.png'"
+      :src="medicament.imageURL || 'https://images.rtl.fr/~c/2000v2000/rtl/www/1766851-plaquettes-et-boites-de-medicaments.jpg'"
       :alt="medicament.nom"
       class="image-medicament"
     />
