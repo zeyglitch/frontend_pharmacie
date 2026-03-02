@@ -60,7 +60,19 @@ function chargerCategories() {
 }
 
 function soumettre() {
+  // Validation basique
+  if (!nom.value.trim()) {
+    alert('Le nom est obligatoire.')
+    return
+  }
+
+  if (!categorieCode.value) {
+    alert('La catégorie est obligatoire.')
+    return
+  }
+
   // Construction de l'objet à envoyer
+  // Spring Data REST attend l'URI de la catégorie pour les associations @ManyToOne
   const donnees = {
     nom: nom.value.trim(),
     quantiteParUnite: quantiteParUnite.value.trim(),
@@ -68,13 +80,8 @@ function soumettre() {
     unitesEnStock: parseInt(unitesEnStock.value),
     niveauDeReappro: parseInt(niveauDeReappro.value),
     indisponible: false,
-    imageURL: imageURL.value.trim()
-  }
-
-  // Validation basique
-  if (!donnees.nom) {
-    alert('Le nom est obligatoire.')
-    return
+    imageURL: imageURL.value.trim(),
+    categorie: `https://backend-pharmacie-7fa7.onrender.com/api/categories/${categorieCode.value}`
   }
 
   if (estModification.value) {
@@ -89,41 +96,23 @@ function soumettre() {
         return reponse.json()
       })
       .then(resultat => {
-        // Associer la catégorie si sélectionnée
-        if (categorieCode.value) {
-          associerCategorie(props.medicament.id, categorieCode.value)
-        }
         emit('sauvegarder', resultat)
       })
       .catch(err => {
         alert('Erreur : ' + err.message)
       })
   } else {
-    // POST pour ajouter : il faut d'abord trouver la prochaine référence disponible
-    // car 'reference' est la clé primaire et n'est pas auto-générée
-    fetch(`${URL_API}?size=1&sort=reference,desc`)
-      .then(reponse => reponse.json())
-      .then(data => {
-        const liste = data._embedded ? data._embedded.medicaments : []
-        const maxRef = liste.length > 0 ? liste[0].reference : 0
-        donnees.reference = maxRef + 1
-
-        return fetch(URL_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(donnees)
-        })
-      })
+    // POST pour ajouter (reference est auto-générée par la BD, pas besoin de l'envoyer)
+    fetch(URL_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(donnees)
+    })
       .then(reponse => {
         if (!reponse.ok) throw new Error("Erreur lors de l'ajout")
         return reponse.json()
       })
       .then(resultat => {
-        // Récupérer l'id du nouveau médicament pour associer la catégorie
-        const nouvelId = parseInt(resultat._links.self.href.split('/').pop())
-        if (categorieCode.value) {
-          associerCategorie(nouvelId, categorieCode.value)
-        }
         emit('sauvegarder', resultat)
       })
       .catch(err => {
