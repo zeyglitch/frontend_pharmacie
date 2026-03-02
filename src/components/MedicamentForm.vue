@@ -99,12 +99,21 @@ function soumettre() {
         alert('Erreur : ' + err.message)
       })
   } else {
-    // POST pour ajouter
-    fetch(URL_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(donnees)
-    })
+    // POST pour ajouter : il faut d'abord trouver la prochaine référence disponible
+    // car 'reference' est la clé primaire et n'est pas auto-générée
+    fetch(`${URL_API}?size=1&sort=reference,desc`)
+      .then(reponse => reponse.json())
+      .then(data => {
+        const liste = data._embedded ? data._embedded.medicaments : []
+        const maxRef = liste.length > 0 ? liste[0].reference : 0
+        donnees.reference = maxRef + 1
+
+        return fetch(URL_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(donnees)
+        })
+      })
       .then(reponse => {
         if (!reponse.ok) throw new Error("Erreur lors de l'ajout")
         return reponse.json()
