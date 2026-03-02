@@ -63,7 +63,7 @@ function chargerMedicaments() {
   chargement.value = true
   erreur.value = ''
 
-  fetch(URL_API)
+  fetch(`${URL_API}?size=1000`)
     .then(reponse => {
       if (!reponse.ok) throw new Error('Erreur lors du chargement')
       return reponse.json()
