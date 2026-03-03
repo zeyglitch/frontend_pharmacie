@@ -6,17 +6,14 @@ import MedicamentForm from './MedicamentForm.vue'
 
 const URL_API = 'https://backend-pharmacie-7fa7.onrender.com/api/medicaments'
 
-// État principal
 const listeMedicaments = ref([])
 const chargement = ref(true)
 const erreur = ref('')
 const recherche = ref('')
 
-// Filtre par catégorie
 const listeCategories = ref([])
 const categorieSelectionnee = ref('')
 
-// Contrôle du formulaire
 const formulaireVisible = ref(false)
 const medicamentAModifier = ref(null)
 
@@ -42,7 +39,7 @@ const medicamentsFiltres = computed(() => {
   return resultats
 })
 
-// Récupérer les catégories pour le menu déroulant
+// Chargement des catégories
 function chargerCategories() {
   fetch('https://backend-pharmacie-7fa7.onrender.com/api/categories')
     .then(reponse => {
@@ -53,12 +50,13 @@ function chargerCategories() {
       // Format Spring Data REST : données dans _embedded.categories
       listeCategories.value = donnees._embedded ? donnees._embedded.categories : []
     })
-    .catch(() => {
+    .catch(err => {
+      console.log(err)
       listeCategories.value = []
     })
 }
 
-// Récupérer tous les médicaments depuis l'API
+
 function chargerMedicaments() {
   chargement.value = true
   erreur.value = ''
@@ -88,19 +86,19 @@ function chargerMedicaments() {
     })
 }
 
-// Charger la catégorie d'un médicament via son lien HAL
+// On charge la catégorie séparément car Spring Data REST renvoie un lien HAL
 function chargerCategorieMedicament(medicament) {
   fetch(medicament.lienCategorie)
     .then(reponse => reponse.json())
     .then(categorie => {
       medicament.categorie = categorie
     })
-    .catch(() => {
-      // Pas grave si la catégorie ne charge pas
+    .catch(err => {
+      console.log(err)
     })
 }
 
-// Supprimer un médicament
+
 function supprimerMedicament(id) {
   if (!confirm('Voulez-vous vraiment supprimer ce médicament ?')) return
 
@@ -114,7 +112,7 @@ function supprimerMedicament(id) {
     })
 }
 
-// Modifier la quantité (+1 ou -1)
+
 function modifierQuantite(medicament, delta) {
   const nouvelleQuantite = medicament.unitesEnStock + delta
   if (nouvelleQuantite < 0) return
@@ -152,13 +150,13 @@ function modifierQuantite(medicament, delta) {
     })
 }
 
-// Ouvrir le formulaire pour ajouter
+
 function ouvrirFormulaireAjout() {
   medicamentAModifier.value = null
   formulaireVisible.value = true
 }
 
-// Ouvrir le formulaire pour modifier
+
 function ouvrirFormulaireModification(medicament) {
   medicamentAModifier.value = { ...medicament }
   if (medicament.categorie) {
@@ -167,13 +165,13 @@ function ouvrirFormulaireModification(medicament) {
   formulaireVisible.value = true
 }
 
-// Fermer le formulaire
+
 function fermerFormulaire() {
   formulaireVisible.value = false
   medicamentAModifier.value = null
 }
 
-// Quand le formulaire sauvegarde (ajout ou modification), on recharge toute la liste
+// Après sauvegarde on recharge la liste
 function onSauvegarde() {
   fermerFormulaire()
   chargerMedicaments()

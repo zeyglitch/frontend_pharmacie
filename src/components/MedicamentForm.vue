@@ -14,7 +14,7 @@ const emit = defineEmits(['sauvegarder', 'annuler'])
 
 const estModification = ref(false)
 
-// Champs du formulaire
+
 const nom = ref('')
 const quantiteParUnite = ref('')
 const prixUnitaire = ref(0)
@@ -23,10 +23,10 @@ const niveauDeReappro = ref(5)
 const imageURL = ref('')
 const categorieCode = ref('')
 
-// Liste des catégories pour le select
+
 const listeCategories = ref([])
 
-// Si on reçoit un médicament en prop, on pré-remplit le formulaire
+// Pré-remplissage si modification
 onMounted(() => {
   chargerCategories()
 
@@ -44,7 +44,7 @@ onMounted(() => {
   }
 })
 
-// Charger les catégories depuis l'API
+
 function chargerCategories() {
   fetch('https://backend-pharmacie-7fa7.onrender.com/api/categories')
     .then(reponse => {
@@ -54,13 +54,14 @@ function chargerCategories() {
     .then(donnees => {
       listeCategories.value = donnees._embedded ? donnees._embedded.categories : []
     })
-    .catch(() => {
+    .catch(err => {
+      console.log(err)
       listeCategories.value = []
     })
 }
 
 function soumettre() {
-  // Validation basique
+
   if (!nom.value.trim()) {
     alert('Le nom est obligatoire.')
     return
@@ -71,8 +72,7 @@ function soumettre() {
     return
   }
 
-  // Construction de l'objet à envoyer
-  // Spring Data REST attend l'URI de la catégorie pour les associations @ManyToOne
+  // Spring Data REST attend l'URI de la catégorie pour l'association
   const donnees = {
     nom: nom.value.trim(),
     quantiteParUnite: quantiteParUnite.value.trim(),
@@ -119,18 +119,6 @@ function soumettre() {
         alert('Erreur : ' + err.message)
       })
   }
-}
-
-// Associer une catégorie à un médicament via Spring Data REST
-function associerCategorie(medicamentId, codeCategorie) {
-  const urlCategorie = `https://backend-pharmacie-7fa7.onrender.com/api/categories/${codeCategorie}`
-  fetch(`${URL_API}/${medicamentId}/categorie`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'text/uri-list' },
-    body: urlCategorie
-  }).catch(() => {
-    // Pas bloquant si l'association échoue
-  })
 }
 </script>
 
