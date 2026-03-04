@@ -48,10 +48,10 @@ const emit = defineEmits(['supprimer', 'modifierQuantite', 'modifier'])
     <!-- Boutons d'action -->
     <div class="actions-carte">
       <button class="btn btn-primary btn-small" @click="emit('modifier', medicament)">
-        ✏️ Modifier
+        Modifier
       </button>
       <button class="btn btn-danger btn-small" @click="emit('supprimer', medicament.id)">
-        🗑️ Supprimer
+        Supprimer
       </button>
     </div>
   </div>
